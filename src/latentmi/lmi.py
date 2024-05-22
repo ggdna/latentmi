@@ -102,7 +102,7 @@ def ae(Xs, Ys, train_indices, test_indices,
        regularizer='models.AECross', 
        alpha=1, lam=1,
        N_dims=8, batch_size=512, lr=0.0001, epochs=300,
-       validation_split=0.3, patience=30, quiet=True):
+       validation_split=0.3, patience=30, quiet=True, device='cpu'):
     """
     train paired AE model and embed data
 
@@ -137,7 +137,7 @@ def ae(Xs, Ys, train_indices, test_indices,
     # assert Y_train.shape[1] // 4 > 0, "Hidden layer with size 0. Consider tiling input."
     
     model = eval(regularizer)(X_train.shape[1], Y_train.shape[1], N_dims, 
-                              alpha=alpha, lam=lam).cuda()
+                              alpha=alpha, lam=lam).to(device)
     
     train(model, X_train, Y_train, X_test, Y_test, 
           batch_size=batch_size, lr=lr, epochs=epochs, patience=patience,
@@ -156,7 +156,7 @@ def lmi(Xs, Ys, regularizer='models.AECross',
          alpha=1, lam=1,
          N_dims=8, validation_split=0.5, estimate_on_val=True,
          batch_size=512, lr=0.0001, epochs=300, patience=30,
-         quiet=True):
+         quiet=True, device=None):
     """
     return pMIs, with NaNs for points not included in KSG estimate
 
@@ -176,8 +176,12 @@ def lmi(Xs, Ys, regularizer='models.AECross',
     :param quiet:
     """
 
-    Xs = torch.from_numpy(np.nan_to_num((Xs - Xs.mean(axis=0)) / Xs.std(axis=0))).float().cuda()
-    Ys = torch.from_numpy(np.nan_to_num((Ys - Ys.mean(axis=0)) / Ys.std(axis=0))).float().cuda()
+    if device == None:
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+
+    Xs = torch.from_numpy(np.nan_to_num((Xs - Xs.mean(axis=0)) / Xs.std(axis=0))).float().to(device)
+    Ys = torch.from_numpy(np.nan_to_num((Ys - Ys.mean(axis=0)) / Ys.std(axis=0))).float().to(device)
 
     Xs = torch.clip(Xs, min=-10, max=10)
     Ys = torch.clip(Ys, min=-10, max=10)
@@ -197,7 +201,7 @@ def lmi(Xs, Ys, regularizer='models.AECross',
                 regularizer=regularizer, N_dims=N_dims, batch_size=batch_size,
                 patience=patience, epochs=epochs, 
                 lr=lr, quiet=quiet,
-                alpha=alpha, lam=lam)
+                alpha=alpha, lam=lam, device=device)
 
     if torch.isnan(Zx).any() or torch.isnan(Zy).any():
         warnings.warn("NaNs in embedding! converted to 0s")
