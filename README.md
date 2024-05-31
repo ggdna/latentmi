@@ -1,6 +1,6 @@
 # latentmi
 
-approximating mutual information in high dimensions
+A package for approximating mutual information in high dimensions, using the method introduced in our [paper](linksoon). Latent MI approximation relies on the assumption that high-dimensional data has low-dimensional structure.
 
 ## Installation
 
@@ -10,11 +10,19 @@ $ pip install latentmi
 
 ## Usage
 
-- TODO
+```python
+from latentmi import lmi
 
-## Contributing
+Xs = # some samples of a high dimensional variable
+Ys = # some samples of a high dimensional variable
 
-Interested in contributing? Check out the contributing guidelines. Please note that this project is released with a Code of Conduct. By contributing to this project, you agree to abide by its terms.
+pmis, embedding, model = lmi.lmi(Xs, Ys)
+
+MI_estimate = np.nanmean(pmis) # voila !
+```
+
+More detailed instructions can be found in the example usage notebook.
+
 
 ## License
 
