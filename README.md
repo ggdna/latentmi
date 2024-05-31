@@ -1,6 +1,7 @@
 # latentmi
 
-A package for approximating mutual information in high dimensions, using the method introduced in our [paper](linksoon). Latent MI approximation relies on the assumption that high-dimensional data has low-dimensional structure.
+Latent MI (LMI) approximation is a method for estimating mutual information high dimensions. It is built on the idea that real world high-dimensional data has underlying low-dimensional structure. For more details, see our [manuscript](linkcomingsoon). `latentmi` is our Python implementation of LMI approximation, built with the hope that practicioners can use it with minimal pain and suffering :) 
+
 
 ## Installation
 
