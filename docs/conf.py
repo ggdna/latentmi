@@ -34,3 +34,6 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # a list of builtin themes.
 #
 html_theme = "furo"
+
+# disable notebook execution for build
+nb_execution_mode = 'off'
