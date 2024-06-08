@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
+import sys
 from tqdm.notebook import tqdm
 import warnings
 
@@ -66,39 +67,46 @@ def train(model, X_train, Y_train, X_test, Y_test,
 
     early_stopper = EarlyStopper(patience=patience)
     
-    with tqdm(range(epochs), unit='Epoch', disable=quiet) as tepoch:
-        for epoch in tepoch:
-            
-            for i, (X, Y) in enumerate(train_dataloader):
-                
-                model.train() 
-                model_loss = model.learning_loss(X, Y)
-
-                optimizer.zero_grad()
-                model_loss.backward()
-                optimizer.step()
-            
-            # validation 
-            with torch.no_grad():
-                epoch_validate_loss = []
-                for i, data in enumerate(val_dataloader):
-                    X, Y = data
-                    epoch_validate_loss.append(model.learning_loss(X, Y).item())
-                val_losses.append(np.mean(epoch_validate_loss))
-
-            tepoch.set_postfix(val_loss=val_losses[-1])
-            # early stopping
-            es = early_stopper.early_stop(val_losses[-1], model)
-            if es:
-                if not quiet:
-                    print("Training stopped at epoch ", epoch)
-                    print('Validation loss:', val_losses[-1])
-                model.load_state_dict(es)
-                return
+    # with tqdm(range(epochs), unit='Epoch', disable=quiet) as tepoch:
+    for epoch in range(epochs):
         
+        for i, (X, Y) in enumerate(train_dataloader):
+            
+            model.train() 
+            model_loss = model.learning_loss(X, Y)
+
+            optimizer.zero_grad()
+            model_loss.backward()
+            optimizer.step()
+        
+        # validation 
+        with torch.no_grad():
+            epoch_validate_loss = []
+            for i, data in enumerate(val_dataloader):
+                X, Y = data
+                epoch_validate_loss.append(model.learning_loss(X, Y).item())
+            val_losses.append(np.mean(epoch_validate_loss))
+
+        # tepoch.set_postfix(val_loss=val_losses[-1])
+        # early stopping
+        es = early_stopper.early_stop(val_losses[-1], model)
+        if es or epoch==epochs:
+            if not quiet:
+                sys.stdout.write('epoch %d (of max %d) %s \U0001F389\U0001F389\r' 
+                         %(epoch, epochs, '\U0001F33B'*int(10*(epoch/epochs))))
+                sys.stdout.flush()
+                sys.stdout.write('\n')
+                print("success! training stopped at epoch %d" % epoch)
+                print('final validation loss:', val_losses[-1])
+            model.load_state_dict(es)
+            return
+        
+        sys.stdout.write('epoch %d (of max %d) %s\r' 
+                         %(epoch, epochs, '\U0001F33B'*int(10*(epoch/epochs))))
+        sys.stdout.flush()
 
 
-def ae(Xs, Ys, train_indices, test_indices,
+def learn_representation(Xs, Ys, train_indices, test_indices,
        regularizer='models.AECross', 
        alpha=1, lam=1,
        N_dims=8, batch_size=512, lr=0.0001, epochs=300,
@@ -152,7 +160,7 @@ def ae(Xs, Ys, train_indices, test_indices,
 
         return Zx.cpu(), Zy.cpu(), model
 
-def lmi(Xs, Ys, regularizer='models.AECross', 
+def estimate(Xs, Ys, regularizer='models.AECross', 
          alpha=1, lam=1,
          N_dims=8, validation_split=0.5, estimate_on_val=True,
          batch_size=512, lr=0.0001, epochs=300, patience=30,
@@ -197,7 +205,7 @@ def lmi(Xs, Ys, regularizer='models.AECross',
     test_indices = indices[N_train:]
 
     
-    Zx, Zy, model = ae(Xs, Ys, train_indices, test_indices,
+    Zx, Zy, model = learn_representation(Xs, Ys, train_indices, test_indices,
                 regularizer=regularizer, N_dims=N_dims, batch_size=batch_size,
                 patience=patience, epochs=epochs, 
                 lr=lr, quiet=quiet,
