@@ -92,8 +92,9 @@ def train(model, X_train, Y_train, X_test, Y_test,
         es = early_stopper.early_stop(val_losses[-1], model)
         if es or epoch==epochs:
             if not quiet:
-                sys.stdout.write('epoch %d (of max %d) %s \U0001F389\U0001F389\r' 
-                         %(epoch, epochs, '\U0001F33B'*int(10*(epoch/epochs))))
+                print('\repoch %d (of max %d) %s \U0001F389\U0001F389' 
+                         %(epoch, epochs, '\U0001F33B'*int(10*(epoch/epochs))),
+                         end='')
                 sys.stdout.flush()
                 sys.stdout.write('\n')
                 print("success! training stopped at epoch %d" % epoch)
@@ -101,8 +102,9 @@ def train(model, X_train, Y_train, X_test, Y_test,
             model.load_state_dict(es)
             return
         
-        sys.stdout.write('epoch %d (of max %d) %s\r' 
-                         %(epoch, epochs, '\U0001F33B'*int(10*(epoch/epochs))))
+        print('\repoch %d (of max %d) %s' 
+                         %(epoch, epochs, '\U0001F33B'*int(10*(epoch/epochs))),
+                         end='')
         sys.stdout.flush()
 
 
