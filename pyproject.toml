@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "latentmi"
-version = "0.1.2"
+version = "0.1.3"
 description = "approximating mutual information in high dimensions"
 authors = ["Gokul Gowri"]
 license = "MIT"
