@@ -116,23 +116,26 @@ def learn_representation(Xs, Ys, train_indices, test_indices,
     """
     train paired AE model and embed data
 
-    :param Xs:
-    :param Ys:
+    :param Xs: input data, array with shape (N_samples, N_dims). ordering must align with Y.
+    :param Ys: input data, array with shape(N_samples, N_dims). ordering must align with X.
 
-    :param train_indices:
-    :param test_indices:
+    :param train_indices: list, indices of train samples
+    :param test_indices:list, indices of test samples
 
-    :param regularizer:
-    :param alpha:
-    :param lam:
-    :param N_dims:
+    :param regularizer: type of regularization, defaults to AECross. 
+                        can be changed to \'models.AEMINE\' or 
+                        \'models.AEInfoNCE\' but not recommended.
+    :param alpha: self-reconstruction loss weight, defaults to 1
+    :param lam: cross-reconstruction regularization weight, defaults to 1
+    :param N_dims: dimensions in each latent representation, defaults to 8
     
-    :param batch_size:
-    :param lr:
-    :param epochs:
-    :param validation_split:
-    :param patience:
-    :param quiet:
+    :param batch_size: samples per batch, defaults to 512
+    :param lr: learning rate for Adam optimizer, defaults to 1e-4
+    :param epochs: max number of epochs, defaults to 300
+    :param validation_split: fraction train/test split, defaults to 0.5
+    :param patience: epochs without val. loss decline before early stopping, 
+                     defaults to 300
+    :param quiet: suppress training progress display, defaults to True
     """
     X_train = Xs[train_indices]
     Y_train = Ys[train_indices]
@@ -168,22 +171,31 @@ def estimate(Xs, Ys, regularizer='models.AECross',
          batch_size=512, lr=0.0001, epochs=300, patience=30,
          quiet=True, device=None):
     """
-    return pMIs, with NaNs for points not included in KSG estimate
+    return pMIs (with NaNs for points not included in KSG estimate), embeddings, trained model
 
-    :param Xs:
-    :param Ys:
+    :param Xs: input data, array with shape (N_samples, N_dims). ordering must align with Y.
+    :param Ys: input data, array with shape(N_samples, N_dims). ordering must align with X.
 
-    :param regularizer:
-    :param alpha:
-    :param lam:
-    :param N_dims:
+    :param regularizer: type of regularization, defaults to AECross. 
+                        can be changed to \'models.AEMINE\' or 
+                        \'models.AEInfoNCE\' but not recommended.
+    :param alpha: self-reconstruction loss weight, defaults to 1
+    :param lam: cross-reconstruction regularization weight, defaults to 1
+    :param N_dims: dimensions in each latent representation, defaults to 8
     
-    :param batch_size:
-    :param lr:
-    :param epochs:
-    :param validation_split:
-    :param patience:
-    :param quiet:
+    :param batch_size: samples per batch, defaults to 512
+    :param lr: learning rate for Adam optimizer, defaults to 1e-4
+    :param epochs: max number of epochs, defaults to 300
+    :param validation_split: fraction train/test split, defaults to 0.5
+    :param patience: epochs without val. loss decline before early stopping, 
+                     defaults to 300
+    :param quiet: suppress training progress display, defaults to True
+    :param device: device for torch to train model, defaults to cuda if available, else cpu.
+
+    :return: array of pointwise mutual information estimates, order aligned with input. NaNs
+             values not included in KSG estimate. mean of this array is MI estimate.
+    :return: tuple of arrays of coordinates of latent embeddings. first index is X embeddings, second index is Y.
+    :return: Pytorch object for trained representation learning model
     """
 
     if device == None:
