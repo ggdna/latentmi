@@ -1,6 +1,6 @@
 # latentmi
 
-Latent MI (LMI) approximation is a method for estimating mutual information high dimensions. It is built on the idea that real world high-dimensional data has underlying low-dimensional structure. For more details, see our [manuscript](linkcomingsoon). `latentmi` is our Python implementation of LMI approximation, built with the hope that practicioners can use it with minimal pain and suffering :) 
+Latent MI (LMI) approximation is a method for estimating mutual information high dimensions. It is built on the idea that real world high-dimensional data has underlying low-dimensional structure. For more details, see our [manuscript](https://arxiv.org/abs/2409.02732). `latentmi` is our Python implementation of LMI approximation, built with the hope that practicioners can use it with minimal pain and suffering :) 
 
 
 ## Installation
@@ -17,7 +17,7 @@ from latentmi import lmi
 Xs = # some samples of a high dimensional variable
 Ys = # some samples of a high dimensional variable
 
-pmis, embedding, model = lmi.lmi(Xs, Ys)
+pmis, embedding, model = lmi.estimate(Xs, Ys)
 
 MI_estimate = np.nanmean(pmis) # voila !
 ```
