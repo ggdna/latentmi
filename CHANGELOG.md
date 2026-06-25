@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v0.1.3 (2026-06-24)
+
+### estimate variance
+
+* added a function to estimate lmi approximation variance
+* added documentation for the variance estimate
+* added parameters estimate_var and k to lmi's estimate function
+* progress bar does not display when quiet
 
 ## v0.1.2 (2024-06-08)
 

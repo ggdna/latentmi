@@ -102,11 +102,6 @@ def train(model, X_train, Y_train, X_test, Y_test,
             model.load_state_dict(es)
             return
         
-        print('\repoch %d (of max %d) %s' 
-                         %(epoch, epochs, '\U0001F33B'*int(10*(epoch/epochs))),
-                         end='')
-        sys.stdout.flush()
-
 
 def learn_representation(Xs, Ys, train_indices, test_indices,
        regularizer='models.AECross', 
@@ -165,16 +160,18 @@ def learn_representation(Xs, Ys, train_indices, test_indices,
 
         return Zx.cpu(), Zy.cpu(), model
 
-def estimate(Xs, Ys, regularizer='models.AECross', 
+def estimate(Xs, Ys, estimate_var=False, regularizer='models.AECross', 
          alpha=1, lam=1,
-         N_dims=8, validation_split=0.5, estimate_on_val=True,
+         N_dims=8, k=4, validation_split=0.5, estimate_on_val=True,
          batch_size=512, lr=0.0001, epochs=300, patience=30,
          quiet=True, device=None):
     """
-    return pMIs (with NaNs for points not included in KSG estimate), embeddings, trained model
+    return pMIs (with NaNs for points not included in KSG estimate), [variance estimate], [variance estimate error], embeddings, trained model
 
     :param Xs: input data, array with shape (N_samples, N_dims). ordering must align with Y.
     :param Ys: input data, array with shape(N_samples, N_dims). ordering must align with X.
+
+    :param estimate_var: indicates whether to return a complementary variance estimate and variance estimate error, defaults to False
 
     :param regularizer: type of regularization, defaults to AECross. 
                         can be changed to \'models.AEMINE\' or 
@@ -182,6 +179,7 @@ def estimate(Xs, Ys, regularizer='models.AECross',
     :param alpha: self-reconstruction loss weight, defaults to 1
     :param lam: cross-reconstruction regularization weight, defaults to 1
     :param N_dims: dimensions in each latent representation, defaults to 8
+    :param k: k value used in the kNN calculation for KSG estimate, defaults to 4
     
     :param batch_size: samples per batch, defaults to 512
     :param lr: learning rate for Adam optimizer, defaults to 1e-4
@@ -194,6 +192,8 @@ def estimate(Xs, Ys, regularizer='models.AECross',
 
     :return: array of pointwise mutual information estimates, order aligned with input. NaNs
              values not included in KSG estimate. mean of this array is MI estimate.
+    :return: a single variance estimate for the LMI approximation
+    :return: the standard error of the variance estimate
     :return: tuple of arrays of coordinates of latent embeddings. first index is X embeddings, second index is Y.
     :return: Pytorch object for trained representation learning model
     """
@@ -201,6 +201,8 @@ def estimate(Xs, Ys, regularizer='models.AECross',
     if device == None:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+    oXs = Xs
+    oYs = Ys
 
     Xs = torch.from_numpy(np.nan_to_num((Xs - Xs.mean(axis=0)) / Xs.std(axis=0))).float().to(device)
     Ys = torch.from_numpy(np.nan_to_num((Ys - Ys.mean(axis=0)) / Ys.std(axis=0))).float().to(device)
@@ -241,9 +243,60 @@ def estimate(Xs, Ys, regularizer='models.AECross',
 
         # fill val pMIs
         estimate[indices[N_train:]] = ksg.mi(Zx.cpu()[indices[N_train:]], 
-        Zy.cpu()[indices[N_train:]])
+        Zy.cpu()[indices[N_train:]], k)
     
     else:
-        estimate += ksg.mi(Zx.cpu(), Zy.cpu())
+        estimate += ksg.mi(Zx.cpu(), Zy.cpu(), k)
     
-    return estimate, (Zx.cpu(), Zy.cpu()), model
+    if not estimate_var:
+        return estimate, (Zx.cpu(), Zy.cpu()), model
+    else:
+        var_estimate, se_var_estimate = estimate_variance(oXs, oYs, n_partitions=9, regularizer=regularizer, 
+                      alpha=alpha, lam=lam, N_dims=N_dims, k=k, validation_split=validation_split, estimate_on_val=estimate_on_val,
+                      batch_size=batch_size, lr=lr, epochs=epochs, patience=patience, quiet=quiet, device=device)
+        return estimate, var_estimate, se_var_estimate, (Zx.cpu(), Zy.cpu()), model
+
+def estimate_variance(Xs, Ys, n_partitions=9, regularizer='models.AECross', 
+                      alpha=1, lam=1, N_dims=8, k=3, validation_split=0.5, estimate_on_val=True,
+                      batch_size=512, lr=0.0001, epochs=300, patience=30, quiet=True, device=None):
+
+    # :param n_partitions: number of different partitions of the data to estimate variance on. defaults to 9.  
+
+    assert len(Xs) == len(Ys), "Xs and Ys must be the same size!"
+   
+    XsYs = list(zip(Xs, Ys)) # combine Xs and Ys into a list of tuples for easier shuffling and partitioning
+    # [([x, x, x], [y, y, y]), ([x, x, x], [y, y, y]), ...]
+    data_size = len(XsYs)
+    part_sizes = np.array([i for i in range(2, n_partitions + 2)]) # the number of sections in each partition (the first partition has 2 sections, etc.)
+
+    partitions = [] # contains n_partitions different partitions of n_i sections where i goes from 2 to n_partitions + 1
+    for i in range(0, n_partitions):
+        sec_size = data_size // part_sizes[i] # number of samples in each section
+        np.random.shuffle(XsYs) # shuffle the data before creating the sections
+        partitions.append([XsYs[j*sec_size:(j+1)*sec_size] for j in range(part_sizes[i])])
+
+    lmis = [] # contains the LMI estimates for each partition
+    for part in partitions:
+        part_lmi_est = []
+        for sec in part:
+            Xs_sec, Ys_sec = zip(*sec) # unzip the section into Xs and Ys
+            Xs_sec = np.array(Xs_sec)
+            Ys_sec = np.array(Ys_sec)
+
+            pmis_part , _, _ = estimate(Xs_sec, Ys_sec, estimate_var=False, regularizer=regularizer, alpha=alpha, lam=lam, N_dims=N_dims, k=k, validation_split=validation_split, estimate_on_val=estimate_on_val, batch_size=batch_size, lr=lr, epochs=epochs, patience=patience, quiet=quiet, device=device);
+
+            lmi_estimate_part = np.nanmean(pmis_part)
+            part_lmi_est.append(lmi_estimate_part)
+        lmis.append(part_lmi_est)
+
+    # calculating the variance of the LMI estiamtes from the subsamples
+    part_variances = np.array([None] * n_partitions) # contains the variance estimates for each partition (the first partition is 0)
+    for i in range(0, n_partitions):
+        part_variances[i] = np.var(lmis[i], ddof = 1)
+
+    var_estimate = sum((part_sizes - 1) / part_sizes * part_variances) / sum(part_sizes - 1)
+    sml = var_estimate * data_size
+    var_s = 2 * sml**2 / sum(part_sizes - 1)
+    se_var_estimate = np.sqrt(var_s / data_size**2)
+    
+    return var_estimate, se_var_estimate

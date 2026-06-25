@@ -76,7 +76,7 @@ def entropy(x, k=3, base=2):
     const = digamma(n_elements) - digamma(k) + n_features * np.log(2)
     return (const + n_features * np.log(nn).mean()) / np.log(base)
 
-def mi(x, y, z=None, k=3, base=2, alpha=0):
+def mi(x, y, k=3, z=None, base=2, alpha=0):
     """Mutual information of x and y (conditioned on z if z is not None)
     x, y should be a list of vectors, e.g. x = [[1.3], [3.7], [5.1], [2.4]]
     if x is a one-dimensional scalar and we have four samples
